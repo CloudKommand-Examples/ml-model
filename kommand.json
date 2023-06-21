@@ -1,0 +1,62 @@
+{
+    "components": {
+        "caption_table": {
+            "type": "@dynamodb.table"
+        },
+        "picture_bucket": {
+            "type": "@s3.bucket"
+        },
+        "bucket_trigger": {
+            "type": "@s3.bucket_notification",
+            "bucket_name": "@picture_bucket:props.name",
+            "notification_configuration": [
+                {
+                    "arn": "@captioning_lambda:props.arn",
+                    "events": ["s3:ObjectCreated:*"]
+                }
+            ]
+        },
+        "captioning_lambda": { 
+            "type": "@lambda.function",
+            "policies": ["@policy"],
+            "container": true,
+            "memory_size": 10000,
+            "timeout": 300,
+            "Codebuild Project": {
+                "build_container_size": "2xlarge"
+            },
+            "environment_variables": {
+                "TABLE_NAME": "@caption_table:props.name"
+            },
+            "allowed_invoke_arns": [
+                "@picture_bucket:props.arn"
+            ]
+        },
+        "policy": {
+            "type": "@iam.policy",
+            "document": {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": ["s3:*"],
+                        "Effect": "Allow",
+                        "Resource": ["@picture_bucket:props.arn", "@picture_bucket:props.all_objects_arn"],
+                        "Sid": "s3BucketPermissions"
+                    },
+                    {
+                        "Action": ["dynamodb:*"],
+                        "Effect": "Allow",
+                        "Resource": ["@caption_table:props.arn", "@caption_table:props.all_indexes_arn"],
+                        "Sid": "dynamodbTablePermissions"
+                    }
+                ]
+            }
+        }
+    },
+    "repos": {
+        "s3": "https://github.com/cloudkommand/s3",
+        "dynamodb": "https://github.com/cloudkommand/dynamodb",
+        "lambda": "https://github.com/cloudkommand/lambda",
+        "iam": "https://github.com/cloudkommand/iam"
+    }
+}
